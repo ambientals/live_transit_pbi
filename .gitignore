@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+build/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Virtual Environment
+venv/
+.venv/
+.env
+!.env.example
+
+# All data except transit data CSV
+data/*
+!data/transit_history.csv
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Ignore archive
+_archive/
+
+# Ignore .vscode folder
+.vscode/
+
+# Ignore specific file types
+*.code-workspace
+*.egg-info
+
+# Power BI project local files
+**/.pbi/localSettings.json
+**/.pbi/cache.abf

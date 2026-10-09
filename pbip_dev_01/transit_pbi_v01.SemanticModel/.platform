@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "transit_pbi_v01"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "0d12f2e8-94c0-461c-84c5-356421d1ca72"
+  }
+}
