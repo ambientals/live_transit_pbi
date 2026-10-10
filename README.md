@@ -1,5 +1,7 @@
 # Transit Analytics Power BI Dashboard
 
+Date: 20261010
+
 **Goal:**
 Build an interactive Power BI report using real-world public transit data (BVG/VBB in Berlin or Trenord in Italy).
 The focus is on data modeling and dataviz, powered by a lightweight and free automated pipeline.
@@ -23,7 +25,7 @@ GitHub Repo (Rolling History)
 Power BI Desktop / Service
 ```
 
-An earlier *real-time streaming* prototype (live push into a Power BI streaming dataset) is documented in the Appendix at the end of this file.
+An earlier _real-time streaming_ prototype (live push into a Power BI streaming dataset) is documented in the Appendix at the end of this file.
 
 ---
 
@@ -119,8 +121,8 @@ Before the rolling-CSV pipeline, the first prototype pushed live departures **di
 ### Terminology
 
 - **URL** — the full address string (e.g. `https://api.powerbi.com/beta/.../rows?...`).
-- **Endpoint** — one specific operation's address *within* an API. Each `.env` value (`ENDPOINT_01`, `ENDPOINT_02`) is a *different endpoint*: they differ in `datasetId` (path) and `key`, so each targets a different streaming dataset.
-- **API** — the whole service. The "Power BI REST API" is the collection of *all* its endpoints; the "push rows" endpoint is one of them. VBB is a separate API (`/locations`, `/stops/{id}/departures`).
+- **Endpoint** — one specific operation's address _within_ an API. Each `.env` value (`ENDPOINT_01`, `ENDPOINT_02`) is a _different endpoint_: they differ in `datasetId` (path) and `key`, so each targets a different streaming dataset.
+- **API** — the whole service. The "Power BI REST API" is the collection of _all_ its endpoints; the "push rows" endpoint is one of them. VBB is a separate API (`/locations`, `/stops/{id}/departures`).
 
 ### How the data flows
 
@@ -140,13 +142,13 @@ Your PC is not talking "directly to" a dashboard. There are **three separate hop
    │                                        │  dashboard tiles (read it live)
 ```
 
-1. **Your script READS from VBB.** `requests.get(...)` pulls the latest departures *into* your Python process — a normal "pull": data comes **from** VBB **to** your PC.
+1. **Your script READS from VBB.** `requests.get(...)` pulls the latest departures _into_ your Python process — a normal "pull": data comes **from** VBB **to** your PC.
 
-2. **Your script WRITES to Power BI.** `requests.post(PBI_PUSH_URL, json=payload)` sends an HTTPS request **up to Microsoft's cloud** — the same mechanics as submitting a form to a website. The `key=` in the URL is the credential that authorizes the write; the `datasetId` tells Power BI *which* dataset to append the rows to.
+2. **Your script WRITES to Power BI.** `requests.post(PBI_PUSH_URL, json=payload)` sends an HTTPS request **up to Microsoft's cloud** — the same mechanics as submitting a form to a website. The `key=` in the URL is the credential that authorizes the write; the `datasetId` tells Power BI _which_ dataset to append the rows to.
 
-3. **The streaming dataset stores it.** A **streaming dataset** (aka "push dataset") is a passive Power BI object whose whole job is to *receive* rows pushed at it via its push URL and hold them in a **rolling buffer** (most recent N rows). It doesn't query any data source itself — it just waits for your POSTs.
+3. **The streaming dataset stores it.** A **streaming dataset** (aka "push dataset") is a passive Power BI object whose whole job is to _receive_ rows pushed at it via its push URL and hold them in a **rolling buffer** (most recent N rows). It doesn't query any data source itself — it just waits for your POSTs.
 
-4. **The dashboard displays it.** A **dashboard** is a set of **tiles**. Some tiles are pinned *from* a streaming dataset; those tiles continuously read the dataset's buffer and refresh in near-real-time — that's why the dashboard updates with no manual refresh.
+4. **The dashboard displays it.** A **dashboard** is a set of **tiles**. Some tiles are pinned _from_ a streaming dataset; those tiles continuously read the dataset's buffer and refresh in near-real-time — that's why the dashboard updates with no manual refresh.
 
 ### Pipeline (what does what)
 
