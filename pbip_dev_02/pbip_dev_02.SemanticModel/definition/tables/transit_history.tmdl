@@ -1,0 +1,54 @@
+table transit_history
+	lineageTag: 0f8f8bf7-3d51-40b6-8038-fc7a3aff4fde
+
+	column Timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: ad603319-5b1a-4c55-9615-9ba494dd2544
+		summarizeBy: none
+		sourceColumn: Timestamp
+
+		variation Variation
+			isDefault
+			relationship: 4719a62d-6391-4db1-8820-64e0e3b9734d
+			defaultHierarchy: LocalDateTable_390d204e-9e01-450b-b1b7-e838bf971e20.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Line
+		dataType: string
+		lineageTag: 8cb7bde5-160b-43c1-9a18-6be255e8bf27
+		summarizeBy: none
+		sourceColumn: Line
+
+		annotation SummarizationSetBy = Automatic
+
+	column Direction
+		dataType: string
+		lineageTag: bdf41381-1adb-409b-b48d-b396f3dcd202
+		summarizeBy: none
+		sourceColumn: Direction
+
+		annotation SummarizationSetBy = Automatic
+
+	column DelaySec
+		dataType: int64
+		formatString: 0
+		lineageTag: 9d5678e6-7b10-4abc-b2dd-792ddf55a74a
+		summarizeBy: sum
+		sourceColumn: DelaySec
+
+		annotation SummarizationSetBy = Automatic
+
+	partition transit_history = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(Web.Contents("https://raw.githubusercontent.com/ambientals/live_transit_pbi/refs/heads/main/data/transit_history.csv"),[Delimiter=";", Columns=4, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Timestamp", type datetime}, {"Line", type text}, {"Direction", type text}, {"DelaySec", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

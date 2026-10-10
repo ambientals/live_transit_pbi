@@ -18,6 +18,7 @@ data/*
 !data/transit_history.csv
 
 # Logs
+logs/*
 *.log
 
 # OS Files
