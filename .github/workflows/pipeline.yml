@@ -1,3 +1,4 @@
+# Fetches VBB departures every 15 min and commits the rolling CSV.
 name: transit-data-pipeline
 on:
     schedule:
