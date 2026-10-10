@@ -1,0 +1,30 @@
+# Fetches VBB departures every 15 min and commits the rolling CSV.
+name: transit-data-pipeline
+on:
+    schedule:
+        - cron: "*/15 * * * *" # Runs every 15 minutes
+    workflow_dispatch: # Allows manual "Run workflow" button
+
+jobs:
+    update-csv:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            - run: pip install -r requirements.txt
+
+            - run: python scripts/update_transit.py
+
+            - name: Commit and Push CSV
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add data/transit_history.csv || true
+                  git diff --cached --quiet || git commit -m "update transit data $(date -u +%H:%M)"
+                  git push
