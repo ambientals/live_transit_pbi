@@ -51,6 +51,23 @@ GitHub runs the script every 15 minutes and commits the updated CSV to the repos
 1. Create a public GitHub repo and upload `scripts/update_transit.py`.
 2. Create the folder `.github/workflows/` and add [**main.yml**](.github/workflows/main.yml):
 
+### Manual / on-demand triggers (optional)
+
+Besides the cron, the pipeline can be triggered manually:
+
+- **GitHub "Run workflow" button** — on the Actions page, runs the pipeline immediately (no waiting for the schedule). Each click appends one batch of departures.
+- **One-click from Power BI (future enhancement)** — a Power BI report can trigger the pipeline through **Power Automate**:
+
+  1. Create a GitHub **Personal Access Token (PAT)** with the `workflow` scope.
+  2. Add the **Power Automate** visual to the report.
+  3. The flow calls the GitHub "Create a workflow dispatch event" endpoint:
+     ```
+     POST https://api.github.com/repos/<your-username>/<your-repo>/actions/workflows/main.yml/dispatches
+     Authorization: Bearer <PAT>
+     { "ref": "main" }
+     ```
+  4. Optionally, the same flow can then **refresh the Power BI dataset**, so one click = "fetch new data + display it".
+
 ---
 
 ## Phase 3 — Power BI Desktop project
