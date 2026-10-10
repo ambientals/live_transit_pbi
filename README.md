@@ -49,7 +49,7 @@ It trims the oldest data so the repo never hits file-size limits or bloats Git h
 GitHub runs the script every 15 minutes and commits the updated CSV to the repository.
 
 1. Create a public GitHub repo and upload `scripts/update_transit.py`.
-2. Create the folder `.github/workflows/` and add [**pipeline.yml**](.github/workflows/pipeline.yml):
+2. Create the folder `.github/workflows/` and add [**main.yml**](.github/workflows/main.yml):
 
 ---
 
@@ -181,4 +181,4 @@ It runs until interrupted — press **Ctrl+C** to stop.
 - Streaming datasets only drive **dashboard tiles**; they don't support the full Power BI Desktop modeling/DAX experience.
 - Data is ephemeral (no durable history without extra setup).
 - It needs a machine keeping the loop alive — not serverless like GitHub Actions.
-- Hence the rolling-CSV approach (`update_transit.py` + `pipeline.yml`) that this README documents as the current pipeline.
+- Hence the rolling-CSV approach (`update_transit.py` + `main.yml`) that this README documents as the current pipeline.
