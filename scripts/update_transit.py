@@ -19,22 +19,19 @@ SEP = ";"  # Semicolon separator: Direction values can contain commas.
 MAX_ROWS = 15000  # Keeps the file around 1-2MB
 HDRS = {"User-Agent": "pbi-transit-portfolio/1.0"}
 
-
 def get_json(url, params=None):
     """GET with retries; returns parsed JSON or raises after MAX_ATTEMPTS."""
-    last = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             r = requests.get(url, params=params, timeout=TIMEOUT, headers=HDRS)
             r.raise_for_status()
             return r.json()
         except requests.RequestException as e:
-            last = e
             print(f"  attempt {attempt}/{MAX_ATTEMPTS} failed: {e}")
             if attempt < MAX_ATTEMPTS:
                 time.sleep(RETRY_DELAY)
-    raise last
-
+            else:
+                raise          # ← re-raise the current exception on the final try
 
 # --- FETCH DATA ---
 loc = get_json(f"{BASE}/locations", params={"query": STATION, "results": 1})
