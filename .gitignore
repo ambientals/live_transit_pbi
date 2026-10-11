@@ -17,8 +17,9 @@ venv/
 data/*
 !data/transit_history.csv
 
-# Logs
+# Logs (keep the run-log receipt; ignore raw GitHub download dumps)
 logs/*
+!logs/runs.csv
 *.log
 
 # OS Files

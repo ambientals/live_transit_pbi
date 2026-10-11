@@ -35,10 +35,10 @@ table transit_history
 		dataType: int64
 		formatString: 0
 		lineageTag: 9d5678e6-7b10-4abc-b2dd-792ddf55a74a
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: DelaySec
 
-		annotation SummarizationSetBy = Automatic
+		annotation SummarizationSetBy = User
 
 	partition transit_history = m
 		mode: import

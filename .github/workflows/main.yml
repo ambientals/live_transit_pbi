@@ -1,5 +1,6 @@
-# Trigger-only pipeline: runs update_transit.py and commits the rolling CSV.
-# Scheduling is external (cron-job.org -> workflow_dispatch). No internal cron.
+# Trigger-only pipeline: runs update_transit.py, which appends the rolling CSV
+# and writes a run-log receipt (logs/runs.csv). Scheduling is external
+# (cron-job.org -> workflow_dispatch). No internal cron.
 name: transit-data-pipeline
 
 on:
@@ -31,12 +32,18 @@ jobs:
 
             - run: pip install -r requirements.txt
 
-            - run: python scripts/update_transit.py "${{ inputs.station }}"
+            - name: Update transit data + write run log
+              run: python scripts/update_transit.py "${{ inputs.station }}"
 
-            - name: Commit and Push CSV
+            - name: Commit and Push
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git add data/transit_history.csv || true
-                  git diff --cached --quiet || git commit -m "update transit data $(date -u +%H:%M)"
-                  git push
+                  git add data/transit_history.csv logs/runs.csv || true
+                  STATUS=$(tail -n 1 logs/runs.csv | awk -F';' '{print $4}')
+                  if git diff --cached --quiet; then
+                      echo "No changes to commit (status: $STATUS)."
+                  else
+                      git commit -m "transit update $(date -u +%H:%M) [$STATUS]"
+                      git push
+                  fi

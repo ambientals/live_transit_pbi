@@ -1,6 +1,6 @@
 # Transit Analytics Power BI Dashboard
 
-> **Status — 2026-10-10: IN PROGRESS.** The manual pipeline works; automatic scheduling, the DAX measures / modeling depth, and the final dashboard (currently a 1-table skeleton) are still open. See the PL-300 skills map and Next steps below.
+> **Status — 2026-10-10: IN PROGRESS.** The ETL pipeline is complete (scheduled fetch → rolling CSV → run log; cron currently paused). Still open: the DAX measures / modeling depth and the final dashboard (currently a 1-table skeleton). See the PL-300 skills map and Next steps below.
 
 **Goal:** Build an interactive Power BI report from real-world public transit data (BVG/VBB in Berlin), focused on data modeling and dataviz, powered by a lightweight, free pipeline.
 
@@ -8,10 +8,11 @@
 
 ## What's in this repo
 
-- `scripts/update_transit.py` — the data bridge: fetch VBB departures, append to a rolling CSV (semicolon-delimited).
-- `.github/workflows/main.yml` — trigger-only pipeline: `workflow_dispatch` (with a `station` input); runs the script and commits the CSV. No internal cron.
+- `scripts/update_transit.py` — the data bridge: fetch VBB departures, append to a rolling CSV, and write a run-log receipt (gracefully skips when the API is down).
+- `.github/workflows/main.yml` — trigger-only pipeline: `workflow_dispatch` (with a `station` input); runs the script and commits the CSV + run log. No internal cron.
 - `pbip_dev_02/` — the Power BI project (POC): a semantic model + a 1-page report connected to the CSV.
-- `data/transit_history.csv` — the rolling history (the Power BI source).
+- `data/transit_history.csv` — the rolling history = the pure payload (the Power BI source).
+- `logs/runs.csv` — the run log = the receipt (one line per execution: `ok` / `empty` / `skip`).
 - `docs/` — design notes.
 
 ## Current architecture
@@ -21,9 +22,9 @@ cron-job.org (external scheduler, free)
         |  POST .../dispatches  (PAT header)
         v
 GitHub Actions  (workflow_dispatch, input: station)
-        |  update_transit.py: fetch VBB -> append -> trim CSV, commit
+        |  update_transit.py: fetch VBB -> append -> trim CSV + write run log, commit
         v
-data/transit_history.csv  (GitHub repo)
+data/transit_history.csv  (payload)   +   logs/runs.csv  (receipt)
         |  raw URL (Power BI Web connector)
         v
 Power BI  (pbip_dev_02)
@@ -34,18 +35,50 @@ Power BI  (pbip_dev_02)
 ```text
 live_transit_pbi/
 |-- .github/workflows/main.yml      # trigger-only pipeline: workflow_dispatch (station input)
-|-- data/transit_history.csv        # rolling history (the Power BI source)
+|-- data/transit_history.csv        # rolling history = pure payload (the Power BI source)
+|-- logs/runs.csv                   # run log = receipt (one line per execution)
 |-- docs/                           # design notes
 |-- pbip_dev_02/                    # Power BI project (POC)
 |   |-- pbip_dev_02.Report/         # report: 1 page, 1 visual (skeleton)
 |   `-- pbip_dev_02.SemanticModel/  # model: transit_history + date table
 |-- scripts/
-|   |-- update_transit.py           # data bridge: fetch -> append -> trim
+|   |-- update_transit.py           # data bridge: fetch -> append -> trim + write run log
 |   `-- push_vbb.py                 # v1 streaming bridge (superseded)
 |-- _archive/                       # v1 prototype + old workflow (historical)
 |-- .env.example                    # template for local secrets
 `-- README.md
 ```
+
+## Pipeline run log (observability)
+
+The CSV is **payload only** — it never carries pipeline state. The **receipt** lives separately in `logs/runs.csv`, one line per execution, committed to git on every run (including skips):
+
+```csv
+Timestamp;GitHubRunId;Station;Status;Rows;Note
+2026-10-10T19:00:00Z;123456;Alexanderplatz;ok;15;
+2026-10-10T19:15:00Z;123457;Alexanderplatz;skip;0;locations lookup failed (upstream down?)
+2026-10-10T19:30:00Z;123458;Alexanderplatz;empty;0;no departures returned (late night)
+```
+
+- **`ok`** — appended rows (data arrived); no annotation — the run is simply green.
+- **`empty`** — valid response but 0 departures (quiet window, benign); `::notice::` (neutral).
+- **`skip`** — upstream unavailable (transient outage); `::warning::` (yellow) — run stays green.
+
+How to check "was data sent or not":
+
+- `git log --oneline -- logs/runs.csv` → one commit per run, message tagged `[ok]` / `[skip]` / `[empty]`.
+- Open `logs/runs.csv` for the full history.
+
+Two separate GitHub features carry the state, and they land in different places:
+
+| Feature          | Trigger in code                           | Where it shows                               |
+| ---------------- | ----------------------------------------- | -------------------------------------------- |
+| Workflow command | `print("::warning::…")` / `::notice::…`   | "Annotations" on the run summary page        |
+| Step summary     | `emit_summary()` → `$GITHUB_STEP_SUMMARY` | The "Summary" markdown block in the job view |
+
+There is no "positive" annotation command in GitHub Actions — a clean run is green by default (the _absence_ of a warning/error), and the step summary carries the "Appended N rows" line. `::error::` (red) is the only failing annotation; `::notice::` (neutral) and `::warning::` (yellow) both leave the run green.
+
+**Planned (not built yet):** a "pipeline health" page in Power BI reading `logs/runs.csv` — runs over time, ok/empty/skip split, rows-per-run, and gap detection. It turns the pipeline's own reliability into a second story alongside the transit data.
 
 ## Power BI app
 
@@ -71,12 +104,12 @@ Currently a working proof-of-concept, not the final report.
 
 How this project maps to the four exam domains, and where it still needs work:
 
-| Domain              | Weight | Status | What it proves / what's still needed                                                                   |
-| ------------------- | ------ | ------ | ------------------------------------------------------------------------------------------------------ |
-| Prepare the data    | ~25%   | 🟡     | M query loads + types the CSV; still needs profiling and derived columns (hour, weekday, delay bucket) |
-| Model the data      | ~25%   | 🟡     | Star schema + date table ✅; still needs measures, measures table, time-of-day dim, severity buckets   |
-| Visualize & analyze | ~25%   | 🔴     | One raw table only; needs the storyboard (KPIs, charts, conditional formatting, tooltips)              |
-| Deploy & maintain   | ~15%   | 🟡     | PBIP + git = ALM signal ✅; still needs publish, scheduled refresh, and (optionally) RLS               |
+| Domain              | Weight | Status | What it proves / what's still needed                                                                       |
+| ------------------- | ------ | ------ | ---------------------------------------------------------------------------------------------------------- |
+| Prepare the data    | ~25%   | 🟡     | M query loads + types the CSV; still needs profiling and derived columns (hour, weekday, delay bucket)     |
+| Model the data      | ~25%   | 🟡     | Star schema + date table ✅; still needs measures, measures table, time-of-day dim, severity buckets       |
+| Visualize & analyze | ~25%   | 🔴     | One raw table only; needs the storyboard (KPIs, charts, conditional formatting, tooltips)                  |
+| Deploy & maintain   | ~15%   | 🟡     | PBIP + git = ALM ✅; run log + graceful skip = monitoring ✅; still needs publish, refresh, (optional) RLS |
 
 ## Prerequisites
 
@@ -87,39 +120,44 @@ How this project maps to the four exam domains, and where it still needs work:
 
 ## Status & incident log (2026-10-10)
 
-| Time (UTC)  | Event                                                                             |
-| ----------- | --------------------------------------------------------------------------------- |
-| 03:57       | Run #1 — manual — green, 13s                                                      |
-| 08:38       | Run #2 — scheduled — red: `KeyError: 0` (API returned empty)                      |
-| ~09:00      | Manual re-run — green                                                             |
-| 08:40-10:00 | No further cron runs despite `*/15` -> GitHub free-tier cron throttling suspected |
-| later       | Runs KO with `ReadTimeout` — VBB `transport.rest` API down (timeout / 503)        |
+| Time (UTC)  | Event                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------- |
+| 03:57       | Run #1 — manual — green, 13s                                                                             |
+| 08:38       | Run #2 — scheduled — red: `KeyError: 0` (API returned empty)                                             |
+| ~09:00      | Manual re-run — green                                                                                    |
+| 08:40-10:00 | No further cron runs despite `*/15` -> GitHub free-tier cron throttling suspected                        |
+| later       | Runs KO with `ReadTimeout` — VBB `transport.rest` API down (timeout / 503)                               |
+| (evening)   | Root cause = flaky VBB API, not GitHub (cron returned 204s fine). Fixed: graceful skip + run-log receipt |
 
 ## Next steps
 
-**Phase 0 — finish the backend (scheduling NOT finished yet):**
+**Phase 0 — backend ETL: DONE (cron currently paused):**
 
-1. **Data source:** resolved — `v6.vbb.transport.rest` is back up (verified 2026-10-10).
-2. **Harden `update_transit.py`:** done — retries, response validation, parameterized station.
-3. **Scheduling (open):** `main.yml` is trigger-only (`workflow_dispatch` + `station` input). Still to do: create the cron-job.org job (see "Scheduling setup" below).
+1. **Data source:** `v6.vbb.transport.rest` (verified 2026-10-10).
+2. **Harden `update_transit.py`:** done — retries, response validation, parameterized station, graceful skip on upstream downtime, and a `logs/runs.csv` receipt.
+3. **Scheduling:** `main.yml` is trigger-only; cron-job.org fires `workflow_dispatch` every 15 min (GitHub returns `204` = accepted). Cron is currently **paused** — no need to run overnight at this stage.
+4. **Overlap guard:** `concurrency` block added so manual + scheduled runs can't race on `git push`.
 
 **Phase 1 — model depth (PL-300 "Model the data"):**
 
-4. Add a measures table and implement the DAX library below (currently only planned, not in the model).
-5. Add a time-of-day dimension (`Hour`, `RushHour` flag, `Weekday/Weekend`) — required for the rush-hour curve.
-6. Add delay-severity buckets (on time / late / very late) for the conditional-color KPI cards.
-7. Optional: role-level security demo (a role filtered by `Line`) for the "Deploy & maintain" domain.
+5. Add a measures table and implement the DAX library below (currently only planned, not in the model).
+6. Add a time-of-day dimension (`Hour`, `RushHour` flag, `Weekday/Weekend`) — required for the rush-hour curve.
+7. Add delay-severity buckets (on time / late / very late) for the conditional-color KPI cards.
+8. Optional: role-level security demo (a role filtered by `Line`) for the "Deploy & maintain" domain.
 
 **Phase 2 — the dashboard (PL-300 "Visualize & analyze"):**
 
-8. Build the storyboard below in Power BI Desktop, then commit the PBIP.
-9. Apply a custom transit theme (see "Design language" below).
+9. Build the storyboard below in Power BI Desktop, then commit the PBIP.
+10. Apply a custom transit theme (see "Design language" below).
+11. Add a "pipeline health" page over `logs/runs.csv` (documented above, not built yet).
 
 **Phase 3 — deploy & maintain (PL-300 "Deploy & maintain"):**
 
-10. Publish + scheduled refresh (free tier, 8 refreshes/day); optional workspace app / dashboard.
+12. Publish + scheduled refresh (free tier, 8 refreshes/day); optional workspace app / dashboard.
 
 ## Scheduling setup
+
+> Note: the cron-job.org job is currently **paused** — re-enable it when you want unattended collection to resume.
 
 This GitHub pipeline/workflow is intentionally trigger-only (no internal cron). To run it automatically:
 
@@ -191,6 +229,7 @@ RETURN [Avg Delay (Mins)] - CityAvg
 - **Solution:** serverless ELT (Actions -> rolling flat file) + Import-mode semantic model with contextual DAX.
 - **Engineering judgment:** a real-time streaming variant (Power BI push datasets) was prototyped, evaluated and archived — tradeoffs in `_archive/`.
 - **Analytics:** contextual measures (vs city average), conditional formatting, slicer-driven storytelling.
+- **Observability:** payload (CSV) is separated from state (`logs/runs.csv` receipt); upstream outages are skipped gracefully instead of failing the run — an audit trail of every execution.
 
 **CV one-liner:**
 
