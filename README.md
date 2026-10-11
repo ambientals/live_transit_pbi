@@ -1,8 +1,24 @@
 # Transit Analytics Power BI Dashboard
 
-> **Status — 2026-10-10: IN PROGRESS.** The ETL pipeline is complete (scheduled fetch → rolling CSV → run log; cron currently paused). Still open: the DAX measures / modeling depth and the final dashboard (currently a 1-table skeleton). See the PL-300 skills map and Next steps below.
+> **Status — 2026-10-11: IN PROGRESS.** The ETL pipeline is complete and verified (external scheduling tested & paused by choice; rolling CSV + run log active). Still open: the DAX measures / modeling depth and the final dashboard (currently a 1-table skeleton). See the [PL-300 skills map](#pl-300-skills-map) and [Next steps](#next-steps) below.
 
 **Goal:** Build an interactive Power BI report from real-world public transit data (BVG/VBB in Berlin), focused on data modeling and dataviz, powered by a lightweight, free pipeline.
+
+---
+
+## Table of Contents
+
+- [What's in this repo](#whats-in-this-repo)
+- [Current architecture](#current-architecture)
+- [Pipeline run log (observability)](#pipeline-run-log-observability)
+- [Power BI app](#power-bi-app)
+- [PL-300 skills map](#pl-300-skills-map)
+- [Status & incident log](#status--incident-log)
+- [Next steps](#next-steps)
+- [Scheduling setup](#scheduling-setup)
+- [Power BI storyboard](#power-bi-storyboard-report-plan)
+- [DAX measures library](#dax-measures-library)
+- [Portfolio narrative](#portfolio-narrative)
 
 ---
 
@@ -76,7 +92,7 @@ Two separate GitHub features carry the state, and they land in different places:
 | Workflow command | `print("::warning::…")` / `::notice::…`   | "Annotations" on the run summary page        |
 | Step summary     | `emit_summary()` → `$GITHUB_STEP_SUMMARY` | The "Summary" markdown block in the job view |
 
-There is no "positive" annotation command in GitHub Actions — a clean run is green by default (the _absence_ of a warning/error), and the step summary carries the "Appended N rows" line. `::error::` (red) is the only failing annotation; `::notice::` (neutral) and `::warning::` (yellow) both leave the run green.
+> **Note on GitHub Annotations:** There is no "positive" annotation command in GitHub Actions — a clean run is green by default (the _absence_ of a warning/error), and the step summary carries the "Appended N rows" line. `::error::` (red) is the only failing annotation; `::notice::` (neutral) and `::warning::` (yellow) both leave the run green.
 
 **Planned (not built yet):** a "pipeline health" page in Power BI reading `logs/runs.csv` — runs over time, ok/empty/skip split, rows-per-run, and gap detection. It turns the pipeline's own reliability into a second story alongside the transit data.
 
@@ -118,42 +134,56 @@ How this project maps to the four exam domains, and where it still needs work:
 - GitHub account (public repo = free Actions minutes).
 - cron-job.org account (free, no card) + a GitHub fine-grained PAT (Actions: write on this repo).
 
-## Status & incident log (2026-10-10)
+## Status & incident log
+
+### 2026-10-10
+
+| Time (UTC)  | Event                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| 03:57       | Run #1 — manual — green, 13s                                                              |
+| 08:38       | Run #2 — scheduled — red: `KeyError: 0` (API returned empty)                              |
+| ~09:00      | Manual re-run — green                                                                     |
+| 08:40-10:00 | No further cron runs despite `*/15` -> GitHub free-tier cron throttling suspected         |
+| later       | Runs KO with `ReadTimeout` — VBB `transport.rest` API down (timeout / 503)                |
+| (evening)   | Root cause = flaky VBB API, not GitHub scheduling. Fixed: graceful skip + run-log receipt |
+
+### 2026-10-11
 
 | Time (UTC)  | Event                                                                                                    |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
-| 03:57       | Run #1 — manual — green, 13s                                                                             |
-| 08:38       | Run #2 — scheduled — red: `KeyError: 0` (API returned empty)                                             |
-| ~09:00      | Manual re-run — green                                                                                    |
-| 08:40-10:00 | No further cron runs despite `*/15` -> GitHub free-tier cron throttling suspected                        |
-| later       | Runs KO with `ReadTimeout` — VBB `transport.rest` API down (timeout / 503)                               |
-| (evening)   | Root cause = flaky VBB API, not GitHub (cron returned 204s fine). Fixed: graceful skip + run-log receipt |
+| 16:44–16:46 | Runs #5–#7 — first cron-job.org dispatches (test runs + first slot) — red: VBB timeout window / overlaps |
+| 16:46       | TEST RUN → HTTP 204 + `x-accepted-github-permissions: actions=write` — fine-grained PAT verified         |
+| 17:00       | Run #8 — first external scheduled dispatch — green 13s (cron-job.org: 204 in 1.41s)                      |
+| later       | `concurrency` guard added to `main.yml`; job **paused by choice** pending Phase 1                        |
 
 ## Next steps
 
-**Phase 0 — backend ETL: DONE (cron currently paused):**
+**Phase 0 — backend ETL: DONE (verified 2026-10-11; job paused by choice)**
 
-1. **Data source:** `v6.vbb.transport.rest` (verified 2026-10-10).
-2. **Harden `update_transit.py`:** done — retries, response validation, parameterized station, graceful skip on upstream downtime, and a `logs/runs.csv` receipt.
-3. **Scheduling:** `main.yml` is trigger-only; cron-job.org fires `workflow_dispatch` every 15 min (GitHub returns `204` = accepted). Cron is currently **paused** — no need to run overnight at this stage.
-4. **Overlap guard:** `concurrency` block added so manual + scheduled runs can't race on `git push`.
+- [x] Data source verified (`v6.vbb.transport.rest`).
+- [x] Harden `update_transit.py` (retries, validation, graceful skip, run-log receipt).
+- [x] External scheduling via cron-job.org (204 verified; first scheduled run green).
+- [x] Overlap guard (`concurrency` block added to `main.yml`).
+- [ ] **Ops:** Enable cron-job.org failure notifications (email/webhook) to catch silent API drops.
+- [ ] **Ops:** Calendar reminder for PAT expiry (**2027-01-09**) — expiry fails silently with 401.
+- [ ] **Decision:** Re-enable cron-job.org scheduler when Phase 1 starts (model needs fresh data).
 
-**Phase 1 — model depth (PL-300 "Model the data"):**
+**Phase 1 — model depth (PL-300 "Model the data")**
 
-5. Add a measures table and implement the DAX library below (currently only planned, not in the model).
-6. Add a time-of-day dimension (`Hour`, `RushHour` flag, `Weekday/Weekend`) — required for the rush-hour curve.
-7. Add delay-severity buckets (on time / late / very late) for the conditional-color KPI cards.
-8. Optional: role-level security demo (a role filtered by `Line`) for the "Deploy & maintain" domain.
+- [ ] Add a measures table and implement the DAX library below.
+- [ ] Add a time-of-day dimension (`Hour`, `RushHour` flag, `Weekday/Weekend`) — required for the rush-hour curve.
+- [ ] Add delay-severity buckets (on time / late / very late) for the conditional-color KPI cards.
+- [ ] _Optional:_ Role-level security demo (a role filtered by `Line`) for the "Deploy & maintain" domain.
 
-**Phase 2 — the dashboard (PL-300 "Visualize & analyze"):**
+**Phase 2 — the dashboard (PL-300 "Visualize & analyze")**
 
-9. Build the storyboard below in Power BI Desktop, then commit the PBIP.
-10. Apply a custom transit theme (see "Design language" below).
-11. Add a "pipeline health" page over `logs/runs.csv` (documented above, not built yet).
+- [ ] Build the storyboard below in Power BI Desktop, then commit the PBIP.
+- [ ] Apply a custom transit theme (see "Design language" below).
+- [ ] Add a "pipeline health" page over `logs/runs.csv`.
 
-**Phase 3 — deploy & maintain (PL-300 "Deploy & maintain"):**
+**Phase 3 — deploy & maintain (PL-300 "Deploy & maintain")**
 
-12. Publish + scheduled refresh (free tier, 8 refreshes/day); optional workspace app / dashboard.
+- [ ] Publish + scheduled refresh (free tier, 8 refreshes/day); optional workspace app / dashboard.
 
 ## Scheduling setup
 
@@ -229,7 +259,6 @@ RETURN [Avg Delay (Mins)] - CityAvg
 - **Solution:** serverless ELT (Actions -> rolling flat file) + Import-mode semantic model with contextual DAX.
 - **Engineering judgment:** a real-time streaming variant (Power BI push datasets) was prototyped, evaluated and archived — tradeoffs in `_archive/`.
 - **Analytics:** contextual measures (vs city average), conditional formatting, slicer-driven storytelling.
-- **Observability:** payload (CSV) is separated from state (`logs/runs.csv` receipt); upstream outages are skipped gracefully instead of failing the run — an audit trail of every execution.
 
 **CV one-liner:**
 
