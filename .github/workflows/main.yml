@@ -1,6 +1,7 @@
 # Trigger-only pipeline: runs update_transit.py and commits the rolling CSV.
 # Scheduling is external (cron-job.org -> workflow_dispatch). No internal cron.
 name: transit-data-pipeline
+
 on:
     workflow_dispatch:
         inputs:
@@ -8,6 +9,13 @@ on:
                 description: "Station name to track (default: Alexanderplatz)"
                 required: false
                 default: "Alexanderplatz"
+
+# Prevent overlapping runs from racing to commit the CSV.
+# If a run hangs or takes longer than 15 minutes, subsequent
+# dispatches will queue up instead of failing on `git push`.
+concurrency:
+    group: transit-update
+    cancel-in-progress: false
 
 jobs:
     update-csv:

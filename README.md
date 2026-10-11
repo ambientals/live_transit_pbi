@@ -1,6 +1,6 @@
 # Transit Analytics Power BI Dashboard
 
-> **Status — 2026-10-10: IN PROGRESS.** The manual pipeline works; automatic scheduling and the final report are still open. See Status and Next steps below.
+> **Status — 2026-10-10: IN PROGRESS.** The manual pipeline works; automatic scheduling, the DAX measures / modeling depth, and the final dashboard (currently a 1-table skeleton) are still open. See the PL-300 skills map and Next steps below.
 
 **Goal:** Build an interactive Power BI report from real-world public transit data (BVG/VBB in Berlin), focused on data modeling and dataviz, powered by a lightweight, free pipeline.
 
@@ -33,7 +33,7 @@ Power BI  (pbip_dev_02)
 
 ```text
 live_transit_pbi/
-|-- .github/workflows/main.yml      # pipeline: cron (*/5) + workflow_dispatch
+|-- .github/workflows/main.yml      # trigger-only pipeline: workflow_dispatch (station input)
 |-- data/transit_history.csv        # rolling history (the Power BI source)
 |-- docs/                           # design notes
 |-- pbip_dev_02/                    # Power BI project (POC)
@@ -61,6 +61,23 @@ Currently a working proof-of-concept, not the final report.
 
 - 1 page ("Page 1"), 1 visual — a minimal skeleton. Visuals and DAX measures are still to be built.
 
+**Still missing (the gap between the POC and the storyboard):**
+
+- No DAX measures are defined in the model yet — the library below is the plan, not the implementation.
+- No measures table, no time-of-day dimension (required for the rush-hour curve), no delay-severity buckets.
+- The report is a single raw `tableEx` dump, not a dashboard: no KPIs, charts, slicers, conditional formatting or tooltips.
+
+## PL-300 skills map
+
+How this project maps to the four exam domains, and where it still needs work:
+
+| Domain              | Weight | Status | What it proves / what's still needed                                                                   |
+| ------------------- | ------ | ------ | ------------------------------------------------------------------------------------------------------ |
+| Prepare the data    | ~25%   | 🟡     | M query loads + types the CSV; still needs profiling and derived columns (hour, weekday, delay bucket) |
+| Model the data      | ~25%   | 🟡     | Star schema + date table ✅; still needs measures, measures table, time-of-day dim, severity buckets   |
+| Visualize & analyze | ~25%   | 🔴     | One raw table only; needs the storyboard (KPIs, charts, conditional formatting, tooltips)              |
+| Deploy & maintain   | ~15%   | 🟡     | PBIP + git = ALM signal ✅; still needs publish, scheduled refresh, and (optionally) RLS               |
+
 ## Prerequisites
 
 - Power BI Desktop & Power BI Service account.
@@ -80,11 +97,27 @@ Currently a working proof-of-concept, not the final report.
 
 ## Next steps
 
-1. **Data source:** resolved - `v6.vbb.transport.rest` is back up (verified 2026-10-10).
-2. **Scheduling:** internal cron removed; `main.yml` is now trigger-only (`workflow_dispatch` + `station` input). Remaining: need to create a cron-job.org job (see "Scheduling setup" below).
-3. **Harden `update_transit.py`:** done - retries, response validation, parameterized station.
-4. **Build the report:** add the storyboard visuals and DAX measures (below) on top of the POC.
-5. **Publish** optional: with scheduled refresh (free tier) - 8 refreshes/day.
+**Phase 0 — finish the backend (scheduling NOT finished yet):**
+
+1. **Data source:** resolved — `v6.vbb.transport.rest` is back up (verified 2026-10-10).
+2. **Harden `update_transit.py`:** done — retries, response validation, parameterized station.
+3. **Scheduling (open):** `main.yml` is trigger-only (`workflow_dispatch` + `station` input). Still to do: create the cron-job.org job (see "Scheduling setup" below).
+
+**Phase 1 — model depth (PL-300 "Model the data"):**
+
+4. Add a measures table and implement the DAX library below (currently only planned, not in the model).
+5. Add a time-of-day dimension (`Hour`, `RushHour` flag, `Weekday/Weekend`) — required for the rush-hour curve.
+6. Add delay-severity buckets (on time / late / very late) for the conditional-color KPI cards.
+7. Optional: role-level security demo (a role filtered by `Line`) for the "Deploy & maintain" domain.
+
+**Phase 2 — the dashboard (PL-300 "Visualize & analyze"):**
+
+8. Build the storyboard below in Power BI Desktop, then commit the PBIP.
+9. Apply a custom transit theme (see "Design language" below).
+
+**Phase 3 — deploy & maintain (PL-300 "Deploy & maintain"):**
+
+10. Publish + scheduled refresh (free tier, 8 refreshes/day); optional workspace app / dashboard.
 
 ## Scheduling setup
 
@@ -101,6 +134,13 @@ This GitHub pipeline/workflow is intentionally trigger-only (no internal cron). 
 
 ## Power BI storyboard (report plan)
 
+Each row answers one commuter question — the "story" the dashboard tells:
+
+- _Which line ruins my commute?_ → line ranking
+- _When is it worst?_ → rush-hour curve
+- _Is today worse than normal?_ → time intelligence vs. city average
+- _Which direction is the friction?_ → on-time vs. late by direction
+
 | Row                    | Content                                                 | Visual                                   |
 | ---------------------- | ------------------------------------------------------- | ---------------------------------------- |
 | KPI row                | Total departures, avg delay, on-time %, severe-delay %  | Cards with conditional color             |
@@ -108,6 +148,15 @@ This GitHub pipeline/workflow is intentionally trigger-only (no internal cron). 
 | Story row, right (40%) | "Directional friction": on-time vs delayed by direction | Donut / 100% stacked bar                 |
 | Category row           | "Usual suspects": avg delay per line, sorted desc       | Bar chart, green->red gradient           |
 | Detail row             | Line -> Direction with volumes & reliability            | Matrix + conditional data bars           |
+
+### Design language
+
+Treat the dashboard like architecture (one clear idea per view, negative space, a deliberate palette) rather than decoration:
+
+- **Identity:** Berlin transit (BVG yellow `#F0D722`) as the accent on the dark `ReportThemeDark` base.
+- **Palette:** accent yellow + neutral dark slate + a green -> amber -> red gradient for `DelaySec`.
+- **Type:** a single clean sans (Segoe UI / Inter / DIN-style, fitting the transit theme), 2-3 weights max.
+- **Grid:** one consistent margin/column grid across all pages; each visual gets breathing room.
 
 ## DAX measures library
 
