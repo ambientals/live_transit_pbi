@@ -4,16 +4,15 @@
 
 > **Goal:** Build an interactive Power BI report from real-world public transit data (BVG/VBB in Berlin), focused on data modeling and dataviz, powered by a lightweight, free, and serverless pipeline.
 >
-> **Status — 2026-10-12: IN PROGRESS.** ETL pipeline is complete and verified.
-> Dashboard's modeling depth and DAX measures are under development.
+> **Status — 2026-10-12: IN PROGRESS.** backend (extraction+loading) pipeline is complete, verified, and running — CSV writes are now idempotent (independent of prior file state).
+> Dashboard modeling + DAX measures are under development, driven by [`docs/design.md`](docs/design.md).
 > See [Next steps](#next-steps) below for a more actionable recap.
 
 ---
 
 **Abstract:**
 
-End-to-end, zero-cost analytics pipeline (Python / GitHub Actions / Power BI), that turns a live transit API into a historical reliability dashboard.
-Serverless ELT pipeline + Power BI analytics on public transit data:
+End-to-end, zero-cost analytics pipeline (Python / GitHub Actions / Power BI), that turns a live public transit API into a reliability dashboard.
 
 - A Python bridge harvests departures into a self-trimming ("rolling") CSV via GitHub Actions;
 - Power BI models it into an interactive reliability dashboard — on-time %, rush-hour degradation, line rankings — with no cloud warehouse and no license cost.
@@ -30,14 +29,23 @@ Serverless ELT pipeline + Power BI analytics on public transit data:
 For a monitoring project of real proportions, one instead would rather make better use of paid (FOSS or not):
 
 - cloud storage to store cold, historical data.
-- cloud ETL service for the jobs and scheduling.
+- cloud ELT/ETL service for the jobs and scheduling.
 - IoT streaming BI platform for real-time dataviz.
 
 ---
 
 ## Table of Contents
 
-- [NEEDS AN UPDATE]
+- [Repository layout](#repository-layout)
+- [Current architecture](#current-architecture)
+- [Execution prerequisites](#execution-prerequisites)
+- [Pipeline observability](#pipeline-observability)
+- [Scheduling setup](#scheduling-setup)
+- [Status &amp; incident log](#status--incident-log)
+- [Power BI app](#power-bi-app)
+- [PL-300 applied skills map](#pl-300-applied-skills-map)
+- [Next steps](#next-steps)
+- [NOTES](#notes)
 
 ---
 
@@ -48,7 +56,7 @@ live_transit_pbi/
 |-- .github/workflows/main.yml      # trigger-only pipeline: workflow_dispatch (station input), runs script and commits data CSV + log CSV.
 |-- data/transit_history.csv        # rolling history = pure payload (the Power BI source)
 |-- logs/runs.csv                   # run log = receipt (one line per execution)
-|-- docs/                           # design notes
+|-- docs/design.md                  # the Power BI design & build guide (model + DAX + storyboard + RLS)
 |-- pbip_dev_%/                     # Power BI project
 |   |-- pbip_dev_%.Report/          # report: pages and visuals
 |   `-- pbip_dev_%.SemanticModel/   # data model: transit_history
@@ -61,7 +69,6 @@ live_transit_pbi/
 Specifically:
 
 - `pbip_dev_%/` — the Power BI project: a semantic model + a report connected to the CSV files.
-
 - `logs/runs.csv` — the run log = the receipt. Contais one line per execution: `ok` / `empty` / `skip`.
 
 ## Current architecture
@@ -155,115 +162,55 @@ To run the automation:
 
 ## Power BI app
 
-Currently a working proof-of-concept, not the final report.
+The analytics layer: an Import-mode semantic model over the two CSVs, plus a report that turns the data into a commuter-reliability story.
 
-**Semantic model** (`pbip_dev_%.SemanticModel`):
-
-- Table `transit_history`: `Timestamp` (dateTime), `Line` (text), `Direction` (text), `DelaySec` (int).
-- Date table (`LocalDateTable`) with a relationship `transit_history.Timestamp` -> `LocalDateTable.Date` (enables time intelligence).
-- The M query loads the CSV from the raw GitHub URL with `Delimiter=";"` and `Encoding=65001` (UTF-8), so the semicolon format and diacritics are handled correctly.
-
-**Report** (`pbip_dev_%.Report`):
-
-- 1 page ("Page 1"), 1 visual — a minimal skeleton. Visuals and DAX measures are still to be built.
-
-**Still missing (the gap between the POC and the storyboard):**
-
-- No DAX measures are defined in the model yet — the library below is the plan, not the implementation.
-- No measures table, no time-of-day dimension (required for the rush-hour curve), no delay-severity buckets.
-- The report is a single raw `tableEx` dump, not a dashboard: no KPIs, charts, slicers, conditional formatting or tooltips.
-
-**TBD:** "pipeline health" page in Power BI reading `logs/runs.csv` — runs over time, ok/empty/skip split, rows-per-run, and gap detection. It turns the pipeline's own reliability into a second story alongside the transit data.
+- **Semantic model** — a star schema: fact `transit_history` (`Timestamp`, `Line`, `Direction`, `DelaySec`) + an explicit `Date` dimension + a `Measures` table (13 measures), loaded from the raw GitHub URL via `Web.Contents`.
+- **Report** — a one-page dashboard (KPIs → rush-hour curve → line ranking → detail) plus a planned "pipeline health" page over `logs/runs.csv`.
+- **Full spec** — modeling decisions, step-by-step build, the DAX library, storyboard, design language, and the RLS plan all live in [`docs/design.md`](docs/design.md).
 
 ## PL-300 applied skills map
 
 How this project maps to the four exam domains, and where it still needs work:
 
-| Domain              | Weight | Status | What it proves / what's still needed                                                                                                              |
-| ------------------- | ------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Prepare the data    | ~25%   | 🟡     | M query loads + types the CSV; still needs profiling and derived dimension columns (p.es. hour, weekday) and metric columns (p.es. delay buckets) |
-| Model the data      | ~25%   | 🟡     | Star schema + date table ✅; still needs measures and measures table, time-of-day dimension, and severity buckets classification                  |
-| Visualize & analyze | ~25%   | 🔴     | One raw table only; needs the storyboard (KPIs, charts, conditional formatting, tooltips)                                                         |
-| Deploy & maintain   | ~15%   | 🟡     | PBIP + git = ALM ✅; run log + graceful skip = monitoring ✅; still needs publish, refresh, RLS for monitoring page                               |
-
-## App storyboard
-
-Each row answers one commuter question, that completes the "story" the dashboard tells:
-
-- _Which line ruins my commute?_ → line ranking
-- _When is it worst?_ → rush-hour curve
-- _Is today worse than normal?_ → time intelligence vs. city average
-- _Which direction is the friction?_ → on-time vs. late by direction
-
-| Row                    | Content                                                 | Visual                                   |
-| ---------------------- | ------------------------------------------------------- | ---------------------------------------- |
-| KPI row                | Total departures, avg delay, on-time %, severe-delay %  | Cards with conditional color             |
-| Story row, left (60%)  | "Rush-hour effect": avg delay by hour of day            | Line/area chart + average reference line |
-| Story row, right (40%) | "Directional friction": on-time vs delayed by direction | Donut / 100% stacked bar                 |
-| Category row           | "Usual suspects": avg delay per line, sorted desc       | Bar chart, green->red gradient           |
-| Detail row             | Line -> Direction with volumes & reliability            | Matrix + conditional data bars           |
-
-### Design language
-
-Treat the dashboard like architecture (one clear idea per view, negative space, a deliberate palette) rather than decoration:
-
-- **Identity:** Berlin transit (BVG yellow `#F0D722`) as the accent on the dark `ReportThemeDark` base.
-- **Palette:** accent yellow + neutral dark slate + a green -> amber -> red gradient for `DelaySec`.
-- **Type:** a single clean sans (Segoe UI / Inter / DIN-style, fitting the transit theme), 2-3 weights max.
-- **Grid:** one consistent margin/column grid across all pages; each visual gets breathing room.
-
-## DAX measures library
-
-```dax
-Total Departures = COUNTROWS('transit_history')
-
-Avg Delay (Mins) =
-DIVIDE(SUM('transit_history'[DelaySec]), COUNTROWS('transit_history'), 0) / 60
-
-On-Time % =
-VAR OnTime = CALCULATE(COUNTROWS('transit_history'), 'transit_history'[DelaySec] <= 0)
-RETURN DIVIDE(OnTime, [Total Departures], 0)
-
-Severe Delay % =
-VAR Severe = CALCULATE(COUNTROWS('transit_history'), 'transit_history'[DelaySec] > 300)
-RETURN DIVIDE(Severe, [Total Departures], 0)
-
-Delay vs City Average =
-VAR CityAvg = CALCULATE([Avg Delay (Mins)], ALL('transit_history'))
-RETURN [Avg Delay (Mins)] - CityAvg
-```
+| Domain                         | Weight | Status | What it proves / what's still needed                                                                                                              |
+| ------------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prepare the data               | 25–30% | 🟡     | M query loads + types the CSV; still needs profiling and derived dimension columns (p.es. hour, weekday) and metric columns (p.es. delay buckets) |
+| Model the data                 | 25–30% | 🟡     | Star schema + date table ✅; still needs measures and measures table, time-of-day dimension, and severity buckets classification                  |
+| Visualize and analyze the data | 25–30% | 🔴     | One raw table only; needs the storyboard (KPIs, charts, conditional formatting, tooltips)                                                         |
+| Manage and secure Power BI     | 15–20% | 🟡     | PBIP + git = ALM ✅; run log + graceful skip = monitoring ✅; still needs publish, refresh, and Station-based RLS (multi-station) — see design.md |
 
 ---
 
 ## Next steps
 
-**Phase 0 — backend ETL: IN PROGRESS**
+**Phase 0 — backend: COMPLETED**
 
 - [x] Data source verified (`v6.vbb.transport.rest`).
-- [x] Harden `update_transit.py` (retries, validation, graceful skip, run-log receipt).
-- [x] External scheduling via cron-job.org (204 verified; first scheduled run green).
-- [x] Overlap guard (`concurrency` block added to `main.yml`).
-- [ ] **Operations:** Enable cron-job.org failure notifications (email/webhook) to catch silent API drops.
+- [x] Develop data extraction task, `update_transit.py` (retries, validation, graceful skip, run-log receipt).
+- [x] Develop Github Actions workflow, `main.yml` (extractor, race condition control).
+- [x] External scheduling via cron-job.org (`Transit_update_%`).
+- [x] Enable cron-job.org failure notifications (email).
 
-**Phase 1 — model depth (PL-300 "Model the data"): TBD**
+**Phase 1 — model depth (PL-300 "Model the data"): IN PROGRESS — guide in [design.md](docs/design.md)**
 
-- [ ] Add a measures table and implement the DAX library below.
-- [ ] Add a time-of-day dimension (`Hour`, `RushHour` flag, `Weekday/Weekend`) — required for the rush-hour curve.
-- [ ] Add delay-severity buckets (on time / late / very late) for the conditional-color KPI cards.
-- [ ] _Optional:_ Role-level security demo (a role filtered by `Line`) for the "Deploy & maintain" domain.
+- [ ] Add a measures table and implement the DAX library (full 13-measure set + calculated columns are in [design.md](docs/design.md)).
+- [ ] Add time-of-day attributes (`Hour`, `RushHour` flag, `DayType` weekday/weekend) — required for the rush-hour curve.
+- [ ] Add delay-severity buckets (`On time` / `Late` / `Very late`) + sort columns, for the conditional-color KPI cards.
+- [ ] Row-level security (Station-based) — planned in Phase 3; see [design.md](docs/design.md) §Security.
 
-**Phase 2 — the dashboard (PL-300 "Visualize & analyze"): TBD**
+**Phase 2 — the dashboard (PL-300 "Visualize and analyze the data"): TBD**
 
-- [ ] Build the storyboard below in Power BI Desktop, then commit the PBIP.
-- [ ] Apply a custom transit theme (see "Design language" below).
-- [ ] Add a "pipeline health" page over `logs/runs.csv`.
+- [ ] Build the storyboard in Power BI Desktop (storyboard + design language in [design.md](docs/design.md)), then commit the PBIP.
+- [ ] Apply the custom transit theme (BVG yellow — see [design.md](docs/design.md)).
+- [ ] Add a "pipeline health" page over `logs/runs.csv` (see [design.md](docs/design.md)).
 
-**Phase 3 — deploy & maintain (PL-300 "Deploy & maintain"): TBD**
+**Phase 3 — manage & secure (PL-300 "Manage and secure Power BI"): TBD**
 
 - [ ] Publish + scheduled refresh (free tier, 8 refreshes/day); optional workspace app / dashboard.
+- [ ] Row-level security (Station-based): make the pipeline multi-station (add `Station` to the fact + model), then one RLS role — "a station operator sees only their station's departures and only their station's pipeline runs." See [design.md](docs/design.md).
 
 ---
 
 ## NOTES
 
-- [OPTIONAL?] Maybe create a local process/ client daemon to, on remote repo status change, synchronize/push from it (in order to push the new data and have it always fresh).
+- [OPTIONAL?] Create a local process/ client daemon to, on remote repo status change, synchronize/push from it (in order to push the new data and have it always fresh).

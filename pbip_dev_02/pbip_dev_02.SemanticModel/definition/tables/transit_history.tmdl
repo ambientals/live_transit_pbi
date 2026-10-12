@@ -44,7 +44,7 @@ table transit_history
 		mode: import
 		source =
 				let
-				    Source = Csv.Document(Web.Contents("https://raw.githubusercontent.com/ambientals/live_transit_pbi/refs/heads/main/data/transit_history.csv"),[Delimiter=";", Columns=4, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    Source = Csv.Document(Web.Contents("https://raw.githubusercontent.com/ambientals/live_transit_pbi/refs/heads/main/data/transit_history.csv"),[Delimiter=";", Columns=4, Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
 				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
 				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Timestamp", type datetime}, {"Line", type text}, {"Direction", type text}, {"DelaySec", Int64.Type}})
 				in

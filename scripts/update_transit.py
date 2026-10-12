@@ -1,4 +1,4 @@
-import os, sys, time, requests
+import csv, os, sys, time, requests
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, NoReturn
@@ -29,21 +29,32 @@ GITHUB_RUN_ID = os.environ.get("GITHUB_RUN_ID", "")
 STEP_SUMMARY = os.environ.get("GITHUB_STEP_SUMMARY", "")
 
 
-def clean(v):
-    """Make a value safe for the semicolon CSV (strip delimiters / newlines)."""
-    return str(v).replace(SEP, " ").replace("\n", " ").replace("\r", " ")
-
-
 def log_run(status, rows, note=""):
-    """Append one receipt line to logs/runs.csv — called on every run, ok or skip."""
+    """Append one receipt line to logs/runs.csv — called on every run (ok/skip).
+
+    Idempotent and independent of the file's prior state: it writes the header
+    if the file is missing or empty, and closes off a dangling last line (e.g. a
+    committed header with no trailing newline) before appending the new row.
+    """
     ts = datetime.now(timezone.utc).isoformat()
-    line = SEP.join([clean(ts), clean(GITHUB_RUN_ID), clean(STATION),
-                     clean(status), str(rows), clean(note)]) + "\n"
-    write_header = not RUNS_FILE.exists()
-    with open(RUNS_FILE, "a", encoding="utf-8") as f:
-        if write_header:
-            f.write(SEP.join(RUN_FIELDS) + "\n")
-        f.write(line)
+    row = [ts, GITHUB_RUN_ID, STATION, status, str(rows), note]
+    size = 0
+    needs_newline = False
+    if RUNS_FILE.exists():
+        with open(RUNS_FILE, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            if size > 0:
+                f.seek(size - 1)
+                needs_newline = f.read(1) != b"\n"
+
+    with open(RUNS_FILE, "a", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, delimiter=SEP, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
+        if size == 0:              # missing or empty -> write the header first
+            w.writerow(RUN_FIELDS)
+        elif needs_newline:        # dangling last line -> terminate it first
+            f.write("\n")
+        w.writerow(row)
 
 
 def emit_summary(status, detail):
@@ -113,22 +124,29 @@ payload = [{
     "DelaySec": d.get("delay") or 0,
 } for d in deps]
 
-# --- ROLLING CSV LOGIC ---
-lines = []
-if os.path.exists(CSV_FILE):
-    with open(CSV_FILE, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+# --- ROLLING CSV LOGIC (idempotent: independent of the file's prior state) ---
+header = None
+data_rows = []
+if CSV_FILE.exists():
+    with open(CSV_FILE, newline="", encoding="utf-8") as f:
+        for row in csv.reader(f, delimiter=SEP):
+            if not row or all(cell == "" for cell in row):
+                continue
+            if header is None:
+                header = row
+            else:
+                data_rows.append(row)
 
-header = lines[0] if lines else SEP.join(FIELDS) + "\n"
-data_lines = lines[1:] if lines else []
+if header is None:
+    header = FIELDS
 
-new_lines = [f"{row['Timestamp']}{SEP}{row['Line']}{SEP}{row['Direction']}{SEP}{row['DelaySec']}\n" for row in payload]
-all_data = data_lines + new_lines
-kept_data = all_data[-MAX_ROWS:]
+new_rows = [[row["Timestamp"], row["Line"], row["Direction"], str(row["DelaySec"])] for row in payload]
+kept_data = (data_rows + new_rows)[-MAX_ROWS:]
 
-with open(CSV_FILE, "w", encoding="utf-8") as f:
-    f.write(header)
-    f.writelines(kept_data)
+with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+    w = csv.writer(f, delimiter=SEP, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
+    w.writerow(header)
+    w.writerows(kept_data)
 
 print(f"Appended {len(payload)} rows. Total rows in CSV: {len(kept_data)}")
 log_run("ok", len(payload), "")
