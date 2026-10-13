@@ -1,0 +1,71 @@
+table runs
+	lineageTag: 4a7fab39-ee90-42b9-aa9b-f92edb0be74d
+
+	column Timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 440674ba-9630-43b0-82b7-ec27a7b03d8f
+		summarizeBy: none
+		sourceColumn: Timestamp
+
+		variation Variation
+			isDefault
+			relationship: 5fee2c61-2c63-4713-a170-803fa6748629
+			defaultHierarchy: LocalDateTable_617411af-e7f8-4b59-a8d0-dd13cc058c08.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column GitHubRunId
+		dataType: int64
+		formatString: 0
+		lineageTag: 09cfc397-1f0a-4e6a-bab8-eefe4c7a220c
+		summarizeBy: none
+		sourceColumn: GitHubRunId
+
+		annotation SummarizationSetBy = User
+
+	column Station
+		dataType: string
+		lineageTag: ec5e2670-2e2e-40bc-a275-de8a45678dba
+		summarizeBy: none
+		sourceColumn: Station
+
+		annotation SummarizationSetBy = Automatic
+
+	column Status
+		dataType: string
+		lineageTag: be1d6b87-dad4-4a0c-9359-01d665ae024a
+		summarizeBy: none
+		sourceColumn: Status
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rows
+		dataType: int64
+		formatString: 0
+		lineageTag: 0e296331-92ef-446c-83b6-8e1772c6cd47
+		summarizeBy: none
+		sourceColumn: Rows
+
+		annotation SummarizationSetBy = User
+
+	column Note
+		dataType: string
+		lineageTag: 25e166ef-66d8-46e0-af54-ddbcf26bc42b
+		summarizeBy: none
+		sourceColumn: Note
+
+		annotation SummarizationSetBy = Automatic
+
+	partition runs = m
+		mode: import
+		source =
+				let
+				  Source = Csv.Document(Web.Contents("https://raw.githubusercontent.com/ambientals/live_transit_pbi/refs/heads/main/logs/runs.csv"), [Delimiter = ";", Columns = 6, QuoteStyle = QuoteStyle.None]),
+				  #"Promoted headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				  #"Changed column type" = Table.TransformColumnTypes(#"Promoted headers", {{"Timestamp", type datetime}, {"GitHubRunId", Int64.Type}, {"Station", type text}, {"Status", type text}, {"Rows", Int64.Type}, {"Note", type text}}, "en-US")
+				in
+				  #"Changed column type"
+
+	changedProperty = Name
+

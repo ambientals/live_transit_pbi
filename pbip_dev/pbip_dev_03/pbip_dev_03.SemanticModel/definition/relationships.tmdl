@@ -3,3 +3,8 @@ relationship 4719a62d-6391-4db1-8820-64e0e3b9734d
 	fromColumn: transit_history.Timestamp
 	toColumn: LocalDateTable_390d204e-9e01-450b-b1b7-e838bf971e20.Date
 
+relationship 5fee2c61-2c63-4713-a170-803fa6748629
+	joinOnDateBehavior: datePartOnly
+	fromColumn: runs.Timestamp
+	toColumn: LocalDateTable_617411af-e7f8-4b59-a8d0-dd13cc058c08.Date
+

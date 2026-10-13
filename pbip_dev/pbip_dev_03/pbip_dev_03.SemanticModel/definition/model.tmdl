@@ -9,13 +9,15 @@ model Model
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 
-annotation PBI_QueryOrder = ["transit_history"]
+annotation PBI_QueryOrder = ["transit_history","runs"]
 
 annotation PBI_ProTooling = ["DevMode"]
 
 ref table transit_history
 ref table DateTableTemplate_7f3acf92-0ac8-451d-b0b5-cc33ad76f2b2
 ref table LocalDateTable_390d204e-9e01-450b-b1b7-e838bf971e20
+ref table runs
+ref table LocalDateTable_617411af-e7f8-4b59-a8d0-dd13cc058c08
 
 ref cultureInfo en-US
 

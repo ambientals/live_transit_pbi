@@ -1,0 +1,94 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "6a715fd8f9ea8d5482ad",
+  "position": {
+    "x": 9.8245614035087723,
+    "y": 0,
+    "z": 0,
+    "height": 540.35087719298247,
+    "width": 1230.8771929824561,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "runs"
+                    }
+                  },
+                  "Property": "Timestamp"
+                }
+              },
+              "queryRef": "runs.Timestamp",
+              "nativeQueryRef": "Timestamp"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "runs"
+                    }
+                  },
+                  "Property": "GitHubRunId"
+                }
+              },
+              "queryRef": "runs.GitHubRunId",
+              "nativeQueryRef": "GitHubRunId"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "runs"
+                    }
+                  },
+                  "Property": "Station"
+                }
+              },
+              "queryRef": "runs.Station",
+              "nativeQueryRef": "Station"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "runs"
+                    }
+                  },
+                  "Property": "Status"
+                }
+              },
+              "queryRef": "runs.Status",
+              "nativeQueryRef": "Status"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "runs"
+                    }
+                  },
+                  "Property": "Note"
+                }
+              },
+              "queryRef": "runs.Note",
+              "nativeQueryRef": "Note"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
