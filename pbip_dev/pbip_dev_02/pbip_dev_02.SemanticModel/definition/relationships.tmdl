@@ -1,5 +1,0 @@
-relationship 4719a62d-6391-4db1-8820-64e0e3b9734d
-	joinOnDateBehavior: datePartOnly
-	fromColumn: transit_history.Timestamp
-	toColumn: LocalDateTable_390d204e-9e01-450b-b1b7-e838bf971e20.Date
-
