@@ -2,11 +2,11 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
   "name": "e8175cd2158f65d59eb6",
   "position": {
-    "x": 8.9887640449438191,
-    "y": 0,
+    "x": 9.0708661417322833,
+    "y": 126.99212598425196,
     "z": 0,
-    "height": 999.55056179775272,
-    "width": 632.8089887640449,
+    "height": 941.85826771653535,
+    "width": 633.44881889763781,
     "tabOrder": 0
   },
   "visual": {
@@ -149,65 +149,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "e5a2aafdeab932ed2e64",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "transit_history"
-              }
-            },
-            "Property": "Line"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "4840840421d66f73d30e",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "transit_history"
-              }
-            },
-            "Property": "Direction"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "8d9f7e53e0f74e162436",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "transit_history"
-              }
-            },
-            "Property": "Timestamp"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "00aab945cf6a938f1c73",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "transit_history"
-              }
-            },
-            "Property": "DelaySec"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }
