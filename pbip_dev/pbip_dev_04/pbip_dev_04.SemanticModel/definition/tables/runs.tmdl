@@ -13,6 +13,8 @@ table runs
 			relationship: 5fee2c61-2c63-4713-a170-803fa6748629
 			defaultHierarchy: LocalDateTable_617411af-e7f8-4b59-a8d0-dd13cc058c08.'Date Hierarchy'
 
+		changedProperty = IsHidden
+
 		annotation SummarizationSetBy = Automatic
 
 	column GitHubRunId
@@ -22,6 +24,8 @@ table runs
 		summarizeBy: none
 		sourceColumn: GitHubRunId
 
+		changedProperty = IsHidden
+
 		annotation SummarizationSetBy = User
 
 	column Station
@@ -30,6 +34,8 @@ table runs
 		summarizeBy: none
 		sourceColumn: Station
 
+		changedProperty = IsHidden
+
 		annotation SummarizationSetBy = Automatic
 
 	column Status
@@ -37,6 +43,8 @@ table runs
 		lineageTag: be1d6b87-dad4-4a0c-9359-01d665ae024a
 		summarizeBy: none
 		sourceColumn: Status
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
@@ -47,6 +55,8 @@ table runs
 		summarizeBy: none
 		sourceColumn: Rows
 
+		changedProperty = IsHidden
+
 		annotation SummarizationSetBy = User
 
 	column Note
@@ -54,6 +64,8 @@ table runs
 		lineageTag: 25e166ef-66d8-46e0-af54-ddbcf26bc42b
 		summarizeBy: none
 		sourceColumn: Note
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
@@ -67,5 +79,5 @@ table runs
 				in
 				  #"Changed column type"
 
-	changedProperty = Name
+	annotation PBI_ResultType = Table
 

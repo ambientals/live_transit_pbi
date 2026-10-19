@@ -1,0 +1,139 @@
+table transit_history
+	lineageTag: 0f8f8bf7-3d51-40b6-8038-fc7a3aff4fde
+
+	column Timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: ad603319-5b1a-4c55-9615-9ba494dd2544
+		summarizeBy: none
+		sourceColumn: Timestamp
+
+		variation Variation
+			isDefault
+			relationship: 4719a62d-6391-4db1-8820-64e0e3b9734d
+			defaultHierarchy: LocalDateTable_390d204e-9e01-450b-b1b7-e838bf971e20.'Date Hierarchy'
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column Line
+		dataType: string
+		lineageTag: 8cb7bde5-160b-43c1-9a18-6be255e8bf27
+		summarizeBy: none
+		sourceColumn: Line
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column Direction
+		dataType: string
+		lineageTag: bdf41381-1adb-409b-b48d-b396f3dcd202
+		summarizeBy: none
+		sourceColumn: Direction
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column DelaySec
+		dataType: int64
+		formatString: 0
+		lineageTag: 9d5678e6-7b10-4abc-b2dd-792ddf55a74a
+		summarizeBy: none
+		sourceColumn: DelaySec
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = User
+
+	column Hour = HOUR('transit_history'[Timestamp])
+		formatString: 0
+		lineageTag: e12f4279-ffdb-486b-a6c3-454ecd7ee801
+		summarizeBy: none
+
+		annotation SummarizationSetBy = User
+
+	column RushHour =
+			IF(
+			    OR(
+			        AND('transit_history' [Hour] >= 6,'transit_history' [Hour] <= 9),
+			        AND('transit_history' [Hour] >= 15,'transit_history' [Hour] <= 18)
+			    ),
+			"Rush hour",
+			"Off-peak"
+			)
+		lineageTag: 9df06f80-274b-46eb-b3f0-683a1d6888e6
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column RushHourSort = IF('transit_history'[RushHour] = "Rush hour", 1, 2)
+		formatString: 0
+		lineageTag: 5324e3e3-2c88-4c4f-bdcd-c1d6da688b7f
+		summarizeBy: none
+
+		annotation SummarizationSetBy = User
+
+	column DayType =
+			IF(
+			    WEEKDAY('transit_history' [Timestamp], 2) <= 5,
+			    "Weekday",
+			    "Weekend"
+			)
+		lineageTag: 59e8f83a-e268-4b04-9023-7a0a80faa294
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column DayTypeSort = IF('transit_history' [DayType] = "Weekday", 1, 2)
+		formatString: 0
+		lineageTag: 1acc8576-a938-47e3-b65f-0a9c6d6b1c14
+		summarizeBy: none
+
+		annotation SummarizationSetBy = User
+
+	column DelayBucket =
+			IF(
+			    'transit_history' [DelaySec] = 0,
+			    "On time",
+			    IF(
+			        'transit_history' [DelaySec] < 0,
+			        "Anticipated",
+			        IF(
+			            'transit_history' [DelaySec] <= 300,
+			            "Late",
+			            "Very late"
+			        )
+			    )
+			)
+		lineageTag: 97f51cd1-840d-42d3-ae27-a2f4082aa6b7
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column DelayBucketSort =
+			IF(
+			    'transit_history' [DelaySec] <= 0,
+			    1,
+			    IF('transit_history' [DelaySec] <= 300, 2, 3)
+			)
+		formatString: 0
+		lineageTag: 431eb1ce-5086-43da-bd9b-e23a5b8bf03c
+		summarizeBy: none
+
+		annotation SummarizationSetBy = User
+
+	partition transit_history = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(Web.Contents("https://raw.githubusercontent.com/ambientals/live_transit_pbi/refs/heads/main/data/transit_history.csv"),[Delimiter=";", Columns=4, Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Timestamp", type datetime}, {"Line", type text}, {"Direction", type text}, {"DelaySec", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

@@ -88,7 +88,7 @@ Select `transit_history`, then **Table tools** → **New column**. Enter each ex
 | `RushHourSort`    | `IF('transit_history'[RushHour] = "Rush hour", 1, 2)`                                                                                                                 | Whole number | —                 |
 | `DayType`         | `IF(WEEKDAY('transit_history'[Timestamp], 2) <= 5, "Weekday", "Weekend")`                                                                                             | Text         | `DayTypeSort`     |
 | `DayTypeSort`     | `IF('transit_history'[DayType] = "Weekday", 1, 2)`                                                                                                                    | Whole number | —                 |
-| `DelayBucket`     | `IF('transit_history'[DelaySec] <= 0, "On time", IF('transit_history'[DelaySec] <= 300, "Late", "Very late"))`                                                        | Text         | `DelayBucketSort` |
+| `DelayBucket`     | `IF('transit_history' [DelaySec] = 0,"On time",IF('transit_history' [DelaySec] < 0,"Anticipated",IF('transit_history' [DelaySec] <= 300,"Late","Very late")))`        | Text         | `DelayBucketSort` |
 | `DelayBucketSort` | `IF('transit_history'[DelaySec] <= 0, 1, IF('transit_history'[DelaySec] <= 300, 2, 3))`                                                                               | Whole number | —                 |
 
 > **Sort-by (exam item):** select `DelayBucket` → **Column tools → Sort by column → DelayBucketSort** so `On time / Late / Very late` order correctly. Repeat for `RushHour` → `RushHourSort` and `DayType` → `DayTypeSort`.

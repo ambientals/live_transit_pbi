@@ -16,7 +16,7 @@
           "nodeIndex": "transit_history",
           "nodeLineageTag": "0f8f8bf7-3d51-40b6-8038-fc7a3aff4fde",
           "size": {
-            "height": 241,
+            "height": 276,
             "width": 243
           },
           "zIndex": 0
@@ -30,6 +30,18 @@
           "nodeLineageTag": "4a7fab39-ee90-42b9-aa9b-f92edb0be74d",
           "size": {
             "height": 242,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 577,
+            "y": 25.25
+          },
+          "nodeIndex": " Measures",
+          "size": {
+            "height": 200,
             "width": 234
           },
           "zIndex": 0
