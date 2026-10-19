@@ -65,8 +65,8 @@ table transit_history
 			"Off-peak"
 			)
 		lineageTag: 9df06f80-274b-46eb-b3f0-683a1d6888e6
-		sortByColumn: RushHourSort
 		summarizeBy: none
+		sortByColumn: RushHourSort
 
 		annotation SummarizationSetBy = Automatic
 
@@ -92,8 +92,8 @@ table transit_history
 			    "Weekend"
 			)
 		lineageTag: 59e8f83a-e268-4b04-9023-7a0a80faa294
-		sortByColumn: DayTypeSort
 		summarizeBy: none
+		sortByColumn: DayTypeSort
 
 		annotation SummarizationSetBy = Automatic
 
@@ -119,8 +119,8 @@ table transit_history
 			    )
 			)
 		lineageTag: 97f51cd1-840d-42d3-ae27-a2f4082aa6b7
-		sortByColumn: DelayBucketSort
 		summarizeBy: none
+		sortByColumn: DelayBucketSort
 
 		annotation SummarizationSetBy = Automatic
 
