@@ -65,11 +65,20 @@ table transit_history
 			"Off-peak"
 			)
 		lineageTag: 9df06f80-274b-46eb-b3f0-683a1d6888e6
+		sortByColumn: RushHourSort
 		summarizeBy: none
 
 		annotation SummarizationSetBy = Automatic
 
-	column RushHourSort = IF('transit_history'[RushHour] = "Rush hour", 1, 2)
+	column RushHourSort =
+			IF(
+			    OR(
+			        AND('transit_history' [Hour] >= 6,'transit_history' [Hour] <= 9),
+			        AND('transit_history' [Hour] >= 15,'transit_history' [Hour] <= 18)
+			    ),
+			1,
+			2
+			)
 		formatString: 0
 		lineageTag: 5324e3e3-2c88-4c4f-bdcd-c1d6da688b7f
 		summarizeBy: none
@@ -83,11 +92,12 @@ table transit_history
 			    "Weekend"
 			)
 		lineageTag: 59e8f83a-e268-4b04-9023-7a0a80faa294
+		sortByColumn: DayTypeSort
 		summarizeBy: none
 
 		annotation SummarizationSetBy = Automatic
 
-	column DayTypeSort = IF('transit_history' [DayType] = "Weekday", 1, 2)
+	column DayTypeSort = IF(WEEKDAY('transit_history' [Timestamp], 2) <= 5, 1, 2)
 		formatString: 0
 		lineageTag: 1acc8576-a938-47e3-b65f-0a9c6d6b1c14
 		summarizeBy: none
@@ -109,15 +119,20 @@ table transit_history
 			    )
 			)
 		lineageTag: 97f51cd1-840d-42d3-ae27-a2f4082aa6b7
+		sortByColumn: DelayBucketSort
 		summarizeBy: none
 
 		annotation SummarizationSetBy = Automatic
 
 	column DelayBucketSort =
 			IF(
-			    'transit_history' [DelaySec] <= 0,
+			    'transit_history' [DelaySec] < 0,
 			    1,
-			    IF('transit_history' [DelaySec] <= 300, 2, 3)
+			    IF(
+			        'transit_history' [DelaySec] = 0,
+			        2,
+			        IF('transit_history' [DelaySec] <= 300, 3, 4)
+			    )
 			)
 		formatString: 0
 		lineageTag: 431eb1ce-5086-43da-bd9b-e23a5b8bf03c

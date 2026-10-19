@@ -63,7 +63,7 @@ One home for all measures = maintainable, discoverable, and a clean signal in Mo
 ### 2.4 Format strings & sort-by
 
 - Percentages → `0.0%`; minutes → `0.0`; counts → `#,##0`; "vs city average" → signed `+0.0;-0.0;0.0`.
-- Text buckets (`On time`/`Late`/`Very late`, `Rush hour`/`Off-peak`) get a **sort-by column** so they sort logically, never alphabetically.
+- Text buckets (`Anticipated`/`On time`/`Late`/`Very late`, `Rush hour`/`Off-peak`) get a **sort-by column** so they sort logically, never alphabetically.
 
 ---
 
@@ -85,15 +85,15 @@ Select `transit_history`, then **Table tools** → **New column**. Enter each ex
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------- |
 | `Hour`            | `HOUR('transit_history'[Timestamp])`                                                                                                                                  | Whole number | —                 |
 | `RushHour`        | `IF(OR(AND('transit_history'[Hour] >= 6, 'transit_history'[Hour] <= 9), AND('transit_history'[Hour] >= 15, 'transit_history'[Hour] <= 18)), "Rush hour", "Off-peak")` | Text         | `RushHourSort`    |
-| `RushHourSort`    | `IF('transit_history'[RushHour] = "Rush hour", 1, 2)`                                                                                                                 | Whole number | —                 |
+| `RushHourSort`    | `IF(OR(AND('transit_history'[Hour] >= 6, 'transit_history'[Hour] <= 9), AND('transit_history'[Hour] >= 15, 'transit_history'[Hour] <= 18)), 1, 2)`                    | Whole number | —                 |
 | `DayType`         | `IF(WEEKDAY('transit_history'[Timestamp], 2) <= 5, "Weekday", "Weekend")`                                                                                             | Text         | `DayTypeSort`     |
-| `DayTypeSort`     | `IF('transit_history'[DayType] = "Weekday", 1, 2)`                                                                                                                    | Whole number | —                 |
+| `DayTypeSort`     | `IF(WEEKDAY('transit_history'[Timestamp], 2) <= 5, 1, 2)`                                                                                                             | Whole number | —                 |
 | `DelayBucket`     | `IF('transit_history' [DelaySec] = 0,"On time",IF('transit_history' [DelaySec] < 0,"Anticipated",IF('transit_history' [DelaySec] <= 300,"Late","Very late")))`        | Text         | `DelayBucketSort` |
-| `DelayBucketSort` | `IF('transit_history'[DelaySec] <= 0, 1, IF('transit_history'[DelaySec] <= 300, 2, 3))`                                                                               | Whole number | —                 |
+| `DelayBucketSort` | `IF('transit_history'[DelaySec] < 0, 1, IF('transit_history'[DelaySec] = 0, 2, IF('transit_history'[DelaySec] <= 300, 3, 4)))`                                        | Whole number | —                 |
 
-> **Sort-by (exam item):** select `DelayBucket` → **Column tools → Sort by column → DelayBucketSort** so `On time / Late / Very late` order correctly. Repeat for `RushHour` → `RushHourSort` and `DayType` → `DayTypeSort`.
+> **Sort-by (exam item):** select `DelayBucket` → **Column tools → Sort by column → DelayBucketSort** so `Anticipated / On time / Late / Very late` order correctly. Repeat for `RushHour` → `RushHourSort` and `DayType` → `DayTypeSort`.
 
-> Bucket thresholds are consistent with the measures: on time = `DelaySec ≤ 0`, late = `1–300`, very late = `> 300` (same boundary as `Severe Delay %`).
+> Bucket thresholds: Anticipated = `DelaySec < 0`, On time = `DelaySec = 0`, Late = `1–300`, Very late = `> 300` (Late/Very late boundary matches `Severe Delay %`; the `On-Time %` measure counts `DelaySec ≤ 0` as on-time).
 
 ### 3.3 Add the measures (on `Measures`)
 
@@ -149,7 +149,7 @@ Checklist before committing the PBIP:
 - [ ] `Measures` table exists with 13 measures and no columns.
 - [ ] `On-Time %` returns a value in `[0,1]` (format `0.0%`).
 - [ ] A table visual of `Line` + `Avg Delay (Mins)` sorts lines by delay.
-- [ ] `DelayBucket` orders as `On time → Late → Very late` (sort-by works).
+- [ ] `DelayBucket` orders as `Anticipated → On time → Late → Very late` (sort-by works).
 - [ ] `RushHour` shows `Rush hour` before `Off-peak`.
 - [ ] `Date` is marked as date table and related to `transit_history[Timestamp]`.
 

@@ -195,7 +195,7 @@ How this project maps to the four exam domains, and where it still needs work:
 
 - [ ] Add a measures table and implement the DAX library (full 13-measure set + calculated columns are in [design.md](docs/design.md)).
 - [ ] Add time-of-day attributes (`Hour`, `RushHour` flag, `DayType` weekday/weekend) — required for the rush-hour curve.
-- [ ] Add delay-severity buckets (`On time` / `Late` / `Very late`) + sort columns, for the conditional-color KPI cards.
+- [ ] Add delay-severity buckets (`Anticipated` / `On time` / `Late` / `Very late`) + sort columns, for the conditional-color KPI cards.
 - [ ] Row-level security (Station-based) — planned in Phase 3; see [design.md](docs/design.md) §Security.
 
 **Phase 2 — the dashboard (PL-300 "Visualize and analyze the data"): TBD**
